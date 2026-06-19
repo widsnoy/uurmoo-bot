@@ -16,7 +16,7 @@ set(ENABLE_TESTS OFF CACHE BOOL "" FORCE)
 set(BUILD_DOCUMENTATION OFF CACHE BOOL "" FORCE)
 add_subdirectory(third_party/tgbot-cpp EXCLUDE_FROM_ALL)
 
-add_executable(uurmoo src/main.cpp src/daily_scheduler.cpp src/utils.cpp)
+add_executable(uurmoo src/main.cpp src/daily_scheduler.cpp src/message_queue.cpp src/utils.cpp)
 
 target_include_directories(uurmoo PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include

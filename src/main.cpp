@@ -4,6 +4,7 @@
 #include <dotenv.h>
 #include <fstream>
 #include <format>
+#include <optional>
 #include <string>
 #include <tgbot/Bot.h>
 #include <tgbot/net/HttpClient.h>
@@ -11,8 +12,11 @@
 
 #include "../include/daily_scheduler.h"
 #include "../include/utils.h"
+#include "message_queue.h"
 
-static void load_dotenv() {
+static MsgQueue msg_queue;
+
+void load_dotenv() {
     if (std::ifstream(".env")) {
         dotenv::init(".env");
         return;
@@ -30,14 +34,19 @@ void register_commands(TgBot::Bot &bot) {
         bot.getApi().sendMessage(user_id, msg);
     });
 
-    bot.getEvents().onCommand("maa_once", [&bot](TgBot::Message::Ptr) {
-        Utils::make_run_maa(bot)();
+    bot.getEvents().onCommand("maa_once", [&bot](TgBot::Message::Ptr message) {
+        if (!Utils::send_from_me(message)) {
+            bot.getApi().sendMessage(message->chat->id, "You cannot use this command!!!");
+            return;
+        }
+        auto thread = std::thread(Utils::make_run_maa(msg_queue));
+        thread.detach();
     });
 }
 
 void register_daily_scheduler(TgBot::Bot& bot) {
     static auto scheduler = DailyScheduler();
-    const auto run_maa = Utils::make_run_maa(bot);
+    const auto run_maa = Utils::make_run_maa(msg_queue);
 
     // 04:10 日刷新后：基建换班、清体力、公招
     scheduler.add({4, 10, TimeZone::Shanghai}, run_maa);
@@ -82,7 +91,12 @@ int main() {
         TgBot::TgLongPoll longPoll(bot);
         while (true) {
             longPoll.start();
-            // std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+            std::optional<MsgNode> msg_opt = msg_queue.pop();
+            while (msg_opt != std::nullopt) {
+               MsgNode msg = msg_opt.value();
+               bot.getApi().sendMessage(msg.chat_id, msg.msg); 
+               msg_opt = msg_queue.pop();
+            }
         }
     } catch (std::exception& e) {
         printf("error: %s\n", e.what());

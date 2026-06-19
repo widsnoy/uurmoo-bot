@@ -7,6 +7,7 @@
 #include <tgbot/tgbot.h>
 
 #include "utils.h"
+#include "message_queue.h"
 
 namespace bp = boost::process::v1;
 
@@ -14,9 +15,9 @@ static std::string read_stream(bp::ipstream& stream) {
     return {std::istreambuf_iterator<char>(stream), {}};
 }
 
-std::function<void()> Utils::make_run_maa(TgBot::Bot& bot) {
-    return [&bot] {
-        const auto chat_id = std::stoll(dotenv::getenv("my_userid"));
+std::function<void()> Utils::make_run_maa(MsgQueue &queue) {
+    auto chat_id = std::stol(dotenv::getenv("my_userid"));
+    return [&queue, chat_id] {
         bp::ipstream out;
         bp::ipstream err;
 
@@ -26,8 +27,6 @@ std::function<void()> Utils::make_run_maa(TgBot::Bot& bot) {
             bp::std_out > out,
             bp::std_err > err
         );
-
-        bot.getApi().sendMessage(chat_id, "maa start!");
 
         process.wait();
 
@@ -41,7 +40,11 @@ std::function<void()> Utils::make_run_maa(TgBot::Bot& bot) {
         } else {
             res = std::format("maa fail ({}): {}\n", exit_code, err_text.c_str());
         }
-
-        bot.getApi().sendMessage(chat_id, res);
+        queue.push(MsgNode {.chat_id = chat_id, .msg = std::move(res)});
     };
+}
+
+bool send_from_me(TgBot::Message::Ptr msg) {
+    auto chat_id = std::stol(dotenv::getenv("my_userid"));
+    return chat_id == msg->chat->id;
 }
