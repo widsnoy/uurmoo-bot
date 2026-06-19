@@ -44,7 +44,7 @@ std::function<void()> Utils::make_run_maa(MsgQueue &queue) {
     };
 }
 
-bool send_from_me(TgBot::Message::Ptr msg) {
+bool Utils::send_from_me(TgBot::Message::Ptr msg) {
     auto chat_id = std::stol(dotenv::getenv("my_userid"));
     return chat_id == msg->chat->id;
 }
