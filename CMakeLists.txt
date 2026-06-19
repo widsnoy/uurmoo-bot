@@ -9,7 +9,7 @@ set(Boost_USE_MULTITHREADED ON)
 find_package(Threads REQUIRED)
 find_package(OpenSSL REQUIRED)
 cmake_policy(SET CMP0167 NEW)
-find_package(Boost COMPONENTS system REQUIRED)
+find_package(Boost REQUIRED)
 find_package(CURL)
 
 set(ENABLE_TESTS OFF CACHE BOOL "" FORCE)
@@ -31,8 +31,11 @@ target_link_libraries(uurmoo PRIVATE
     TgBot
     ${CMAKE_THREAD_LIBS_INIT}
     ${OPENSSL_LIBRARIES}
-    ${Boost_LIBRARIES}
 )
+
+if (TARGET Boost::system)
+    target_link_libraries(uurmoo PRIVATE Boost::system)
+endif()
 
 if (CURL_FOUND)
     target_link_libraries(uurmoo PRIVATE ${CURL_LIBRARIES})
