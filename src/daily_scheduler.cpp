@@ -1,7 +1,7 @@
-#include "../include/daily_scheduler.h"
-
 #include <algorithm>
 #include <stdexcept>
+
+#include "../include/daily_scheduler.h"
 
 using namespace std::chrono;
 

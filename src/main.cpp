@@ -6,9 +6,11 @@
 #include <format>
 #include <optional>
 #include <string>
+#include <thread>
 #include <tgbot/Bot.h>
 #include <tgbot/net/HttpClient.h>
 #include <tgbot/tgbot.h>
+#include <tgbot/types/InputFile.h>
 
 #include "../include/daily_scheduler.h"
 #include "../include/utils.h"
@@ -28,9 +30,21 @@ void load_dotenv() {
 
 void register_commands(TgBot::Bot &bot) {
     bot.getEvents().onCommand("start", [&bot](TgBot::Message::Ptr message) {
-        auto user_id = message->chat->id;
-        auto user_name = message->chat->username;
-        std::string msg = std::format("Hello, {}({}) !", user_name, user_id); 
+        const auto user_id = message->chat->id;
+        const std::string name = message->chat->username.empty()
+            ? std::format("用户 {}", user_id)
+            : message->chat->username;
+
+        const std::string msg = std::format(
+            "你好，{}！\n\n"
+            "我是 uurmoo，用来远程管理 Redroid 上的 MAA 日常任务。\n\n"
+            "可用命令：\n"
+            "/start — 显示本介绍\n"
+            "/maa_once — 立即执行一次 MAA 日常（仅主人）\n"
+            "/redroid_screenshot — 截取 Redroid 当前画面（仅主人）\n\n"
+            "定时任务（上海时区）：每天 04:10、12:10、16:10、20:10 自动执行 MAA，完成后推送结果。",
+            name
+        );
         bot.getApi().sendMessage(user_id, msg);
     });
 
@@ -40,6 +54,15 @@ void register_commands(TgBot::Bot &bot) {
             return;
         }
         auto thread = std::thread(Utils::make_run_maa(msg_queue));
+        thread.detach();
+    });
+
+    bot.getEvents().onCommand("redroid_screenshot", [&bot](TgBot::Message::Ptr message) {
+        if (!Utils::send_from_me(message)) {
+            bot.getApi().sendMessage(message->chat->id, "You cannot use this command!!!");
+            return;
+        }
+        auto thread = std::thread(Utils::make_run_screenshot(msg_queue, message->chat->id));
         thread.detach();
     });
 }
@@ -94,7 +117,14 @@ int main() {
             std::optional<MsgNode> msg_opt = msg_queue.pop();
             while (msg_opt != std::nullopt) {
                MsgNode msg = msg_opt.value();
-               bot.getApi().sendMessage(msg.chat_id, msg.msg); 
+               if (msg.photo_path) {
+                   bot.getApi().sendPhoto(
+                       msg.chat_id,
+                       TgBot::InputFile::fromFile(*msg.photo_path, "image/jpeg")
+                   );
+               } else {
+                   bot.getApi().sendMessage(msg.chat_id, msg.msg);
+               }
                msg_opt = msg_queue.pop();
             }
         }

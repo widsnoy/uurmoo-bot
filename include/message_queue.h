@@ -9,6 +9,7 @@
 struct MsgNode {
     std::int64_t chat_id;
     std::string msg;
+    std::optional<std::string> photo_path;
 };
 
 class MsgQueue {
